@@ -1,13 +1,14 @@
 :root {
-	--bg: #24262d;
-	--bg-column: #2d3038;
-	--bg-card: #373b46;
-	--bg-card-hover: #40454f;
-	--text: #f0f1f4;
-	--text-dim: #b0b4bf;
-	--accent: #6ea8fe;
-	--danger: #e5697e;
-	--border: #434753;
+	--bg: #2b2838;
+	--bg-column: #363248;
+	--bg-card: #413d59;
+	--bg-card-hover: #4c4866;
+	--text: #f0edf8;
+	--text-dim: #b6b0cc;
+	--accent: #9d7bff;
+	--danger: #e5484d;
+	--danger-text: #ff7d86;
+	--border: #827da8;
 	--radius: 8px;
 }
 
@@ -51,7 +52,7 @@ textarea,
 select {
 	font: inherit;
 	color: var(--text);
-	background: #2a2c34;
+	background: #312d44;
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	padding: 6px 9px;
@@ -66,7 +67,7 @@ select:focus {
 
 .btn {
 	background: var(--accent);
-	color: #10151f;
+	color: #241b40;
 	border: none;
 	border-radius: var(--radius);
 	padding: 7px 14px;
@@ -85,8 +86,8 @@ select:focus {
 }
 
 .btn.danger {
-	background: var(--danger);
-	color: #1b0d10;
+	background: #d1303a;
+	color: #ffffff;
 }
 
 .btn.wide {
@@ -99,7 +100,7 @@ select:focus {
 	border: none;
 	color: var(--text-dim);
 	border-radius: 6px;
-	padding: 2px 7px;
+	padding: 4px 8px;
 	font-size: 14px;
 	line-height: 1.4;
 }
@@ -110,7 +111,7 @@ select:focus {
 }
 
 .icon-btn.danger:hover {
-	color: var(--danger);
+	color: var(--danger-text);
 }
 
 /* layout */
@@ -142,7 +143,7 @@ select:focus {
 	flex-direction: column;
 	min-width: 190px;
 	z-index: 5;
-	box-shadow: 0 8px 24px #00000066;
+	box-shadow: 0 8px 24px #00000059;
 }
 
 .menu-item {
@@ -161,6 +162,7 @@ select:focus {
 .app-title {
 	font-size: 17px;
 	font-weight: 700;
+	color: var(--accent);
 }
 
 .conn {
@@ -318,6 +320,10 @@ select:focus {
 	color: var(--text);
 }
 
+.show-more {
+	margin: 0 10px 10px;
+}
+
 /* cards */
 .item-card {
 	background: var(--bg-card);
@@ -349,14 +355,14 @@ select:focus {
 .chip {
 	font-size: 11px;
 	color: var(--text-dim);
-	background: #ffffff10;
+	background: #ffffff14;
 	border-radius: 6px;
 	padding: 1px 7px;
 }
 
 .chip.deadline.overdue {
 	color: #ffb4c0;
-	background: #e5697e22;
+	background: #e5484d2e;
 }
 
 .drop-line {
@@ -448,7 +454,7 @@ select:focus {
 .overlay {
 	position: fixed;
 	inset: 0;
-	background: #00000088;
+	background: #00000066;
 	display: grid;
 	place-items: center;
 	z-index: 10;
@@ -511,5 +517,119 @@ select:focus {
 }
 
 .error {
-	color: var(--danger);
+	color: var(--danger-text);
 }
+
+/* right-click context menu */
+.ctx-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+}
+
+.ctx-menu {
+	position: fixed;
+	background: var(--bg-column);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 6px;
+	display: flex;
+	flex-direction: column;
+	min-width: 170px;
+	box-shadow: 0 8px 24px #00000059;
+}
+
+.ctx-menu .menu-item {
+	font-size: 14px;
+}
+
+.ctx-menu .ctx-danger {
+	color: var(--danger-text);
+}
+
+.ctx-menu .ctx-danger:hover {
+	background: #e5484d33;
+}
+
+/* read-only field views inside the item editor: plain text, not input-like */
+.static-field {
+	width: 100%;
+	background: transparent;
+	border: none;
+	border-radius: 0;
+	padding: 0;
+	cursor: text;
+}
+
+.static-field:hover {
+	background: #ffffff14;
+	border-radius: 4px;
+}
+
+.static-field:focus {
+	border-color: var(--accent);
+}
+
+.static-field.title-view {
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.static-field.desc-view {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.static-field.placeholder {
+	color: var(--text-dim);
+}
+
+/* unsaved-changes confirm dialog */
+.confirm-overlay {
+	z-index: 30;
+}
+
+.confirm-box {
+	width: min(380px, 90vw);
+	background: var(--bg-column);
+	border-radius: 12px;
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	box-shadow: 0 12px 32px #00000059;
+}
+
+.confirm-box p {
+	margin: 0;
+	color: var(--text);
+}
+
+.confirm-box {
+	position: relative;
+}
+
+.confirm-close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	font-size: 16px;
+}
+
+/* keyboard focus visibility (WCAG 2.4.7): consistent ring on every control */
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* inputs indicate focus via their border color instead of an outline */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+}
+
+

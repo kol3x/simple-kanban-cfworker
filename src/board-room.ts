@@ -77,6 +77,15 @@ export class BoardRoom extends DurableObject {
 				this.#insertColumn(title);
 			}
 		}
+		// repaint untouched defaults with the fun palette (items keep their color ids)
+		for (const def of DEFAULT_COLORS) {
+			this.ctx.storage.sql.exec(
+				'UPDATE colors SET hex = ? WHERE id = ? AND name = ?',
+				def.hex,
+				def.id,
+				def.id.charAt(0).toUpperCase() + def.id.slice(1)
+			);
+		}
 	}
 
 	override async fetch(request: Request): Promise<Response> {

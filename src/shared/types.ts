@@ -3,15 +3,15 @@
 export type Color = string;
 
 export const DEFAULT_COLORS: ReadonlyArray<{ id: string; hex: string }> = [
-	{ id: 'gray', hex: '#8b8f99' },
-	{ id: 'red', hex: '#e5697e' },
-	{ id: 'orange', hex: '#eb9645' },
-	{ id: 'yellow', hex: '#e3c53f' },
-	{ id: 'green', hex: '#4cc38a' },
-	{ id: 'teal', hex: '#3fc4b0' },
-	{ id: 'blue', hex: '#6ea8fe' },
-	{ id: 'purple', hex: '#a07ef0' },
-	{ id: 'magenta', hex: '#e569cf' }
+	{ id: 'gray', hex: '#a3adbf' },
+	{ id: 'red', hex: '#ff6b81' },
+	{ id: 'orange', hex: '#ff9066' },
+	{ id: 'yellow', hex: '#ffd93d' },
+	{ id: 'green', hex: '#5ce27e' },
+	{ id: 'teal', hex: '#3fe0c0' },
+	{ id: 'blue', hex: '#38b6ff' },
+	{ id: 'purple', hex: '#b07aff' },
+	{ id: 'magenta', hex: '#ff6fd8' }
 ];
 
 /** A palette entry. Identity is the id (originally the color value); the name is
