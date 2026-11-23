@@ -18,6 +18,8 @@ export class BoardStore {
 	creatingIn = $state<string | null>(null);
 	/** board settings modal open (columns + palette) */
 	settingsOpen = $state(false);
+	/** ids of recently created items — cards with these ids play their entrance animation */
+	freshIds = $state<Set<string>>(new Set());
 	/** color pre-selected for newly created items ('none' = uncolored) */
 	defaultColor = $state<Color>(
 		typeof localStorage !== 'undefined' ? (localStorage.getItem('kanban.defaultColor') ?? 'none') : 'none'
@@ -38,6 +40,54 @@ export class BoardStore {
 	#retries = 0;
 	#key = '';
 	#snapshotWaiters: Array<() => void> = [];
+	#freshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	/** first board already loaded — snapshots afterwards may introduce new items worth animating */
+	#loaded = false;
+	/** locally created items awaiting the server's real id, so their entrance is not replayed */
+	#pendingCreates: Array<{ columnId: string; title: string; index: number; ts: number }> = [];
+
+	/** flag a card to play its entrance animation, then clear it once done */
+	markFresh(id: string): void {
+		this.freshIds.add(id);
+		const prev = this.#freshTimers.get(id);
+		if (prev) clearTimeout(prev);
+		this.#freshTimers.set(
+			id,
+			setTimeout(() => {
+				this.#freshTimers.delete(id);
+				this.freshIds.delete(id);
+			}, 450)
+		);
+	}
+
+	/** diff a fresh server snapshot against the previous state and animate newly appeared items */
+	#applySnapshot(board: BoardState): void {
+		const known = new Set(this.state.items.map((i) => i.id));
+		const now = Date.now();
+		this.#pendingCreates = this.#pendingCreates.filter((p) => now - p.ts < 5000);
+		const pending = [...this.#pendingCreates];
+		const matched = new Set<object>();
+		this.state = board;
+		if (!this.#loaded) {
+			this.#loaded = true;
+			return;
+		}
+		for (const it of board.items) {
+			if (known.has(it.id)) continue;
+			// an item we just created locally still animates under its temp id; the
+			// snapshot swaps in the real id — replaying the entrance would look like a glitch
+			const pi = pending.findIndex(
+				(p) => !matched.has(p) && p.columnId === it.columnId && p.title === it.title && p.index === it.position
+			);
+			if (pi !== -1) {
+				const p = pending[pi];
+				if (p) matched.add(p);
+				continue;
+			}
+			this.markFresh(it.id);
+		}
+		this.#pendingCreates = pending.filter((p) => !matched.has(p));
+	}
 
 	itemsIn(columnId: string): ItemState[] {
 		return this.state.items
@@ -80,6 +130,7 @@ export class BoardStore {
 			return false;
 		}
 		this.state = await res.json();
+		this.#loaded = true; // initial load: don't animate every existing card
 		// stored default color may reference a color that no longer exists
 		if (this.defaultColor !== 'none' && !this.colorHex(this.defaultColor)) {
 			this.setDefaultColor('none');
@@ -100,7 +151,7 @@ export class BoardStore {
 		ws.onmessage = (e) => {
 			const msg = JSON.parse(e.data) as { type: string; board?: BoardState };
 			if (msg.type === 'snapshot' && msg.board) {
-				this.state = msg.board;
+				this.#applySnapshot(msg.board);
 				for (const w of this.#snapshotWaiters.splice(0)) w();
 			}
 		};
@@ -175,6 +226,7 @@ export class BoardStore {
 				if (!col) break;
 				const inCol = this.itemsIn(op.columnId);
 				const index = Math.min(op.index ?? inCol.length, inCol.length);
+				this.#pendingCreates.push({ columnId: op.columnId, title: op.title, index, ts: Date.now() });
 				const item: ItemState = {
 					id: tempId(),
 					columnId: op.columnId,
@@ -188,6 +240,7 @@ export class BoardStore {
 				};
 				for (const it of inCol) if (it.position >= index) it.position++;
 				s.items.push(item);
+				this.markFresh(item.id);
 				break;
 			}
 			case 'item.update': {

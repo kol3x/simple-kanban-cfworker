@@ -48,6 +48,7 @@
 	class="item-card"
 	style={hex ? `--item-color: ${hex}` : undefined}
 	class:dragging={store.dragging === item.id}
+	class:fresh={store.freshIds.has(item.id)}
 	draggable="true"
 	ondragstart={onDragStart}
 	ondragend={onDragEnd}

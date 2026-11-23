@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { flip } from 'svelte/animate';
 	import type { ColumnState } from '../../shared/types';
 	import { store } from './store.svelte';
 	import ItemCard from './ItemCard.svelte';
@@ -87,10 +88,12 @@
 
 		<div class="column-list" bind:this={listEl}>
 			{#each visibleItems as item, i (item.id)}
-				{#if store.dropTarget?.columnId === column.id && store.dropTarget.index === i && store.dragging && store.dragging !== item.id}
-					<div class="drop-line"></div>
-				{/if}
-				<ItemCard {item} />
+				<div class="card-slot" animate:flip={{ duration: 260 }}>
+					{#if store.dropTarget?.columnId === column.id && store.dropTarget.index === i && store.dragging && store.dragging !== item.id}
+						<div class="drop-line"></div>
+					{/if}
+					<ItemCard {item} />
+				</div>
 			{/each}
 			{#if store.dropTarget?.columnId === column.id && store.dropTarget.index >= visibleItems.length && store.dropTarget.index < items.length && store.dragging}
 				<div class="drop-line"></div>
