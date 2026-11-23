@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import { type Color } from '../../shared/types';
 	import { store } from './store.svelte';
+	import { pop, reducedMotion } from './motion';
 
 	let item = $derived(store.editingId ? store.item(store.editingId) : undefined);
 	let creating = $derived(store.creatingIn !== null);
@@ -207,9 +209,15 @@
 	<div
 		class="overlay"
 		role="presentation"
+		transition:fade={{ duration: reducedMotion() ? 0 : 150 }}
 		onclick={(e) => e.target === e.currentTarget && save()}
 	>
-		<div class="editor" role="dialog" aria-label={creating ? 'New item' : 'Edit item'}>
+		<div
+			class="editor"
+			role="dialog"
+			aria-label={creating ? 'New item' : 'Edit item'}
+			transition:pop
+		>
 			<label>
 				Title
 				{#if creating || titleEditing}
@@ -309,9 +317,15 @@
 	<div
 		class="overlay confirm-overlay"
 		role="presentation"
+		transition:fade={{ duration: reducedMotion() ? 0 : 150 }}
 		onclick={(e) => e.target === e.currentTarget && (confirmSave = false)}
 	>
-		<div class="confirm-box" role="alertdialog" aria-label="Unsaved changes">
+		<div
+			class="confirm-box"
+			role="alertdialog"
+			aria-label="Unsaved changes"
+			transition:pop={{ start: 0.94 }}
+		>
 			<button
 				class="icon-btn confirm-close"
 				title="Close"

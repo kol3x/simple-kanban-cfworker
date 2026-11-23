@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { store } from './store.svelte';
+	import { pop, reducedMotion } from './motion';
 
 	interface ColumnDraft {
 		id: string;
@@ -100,9 +102,15 @@
 	<div
 		class="overlay"
 		role="presentation"
+		transition:fade={{ duration: reducedMotion() ? 0 : 150 }}
 		onclick={(e) => e.target === e.currentTarget && save()}
 	>
-		<div class="editor settings-editor" role="dialog" aria-label="Board settings">
+		<div
+			class="editor settings-editor"
+			role="dialog"
+			aria-label="Board settings"
+			transition:pop
+		>
 			<h3 class="palette-title">Columns</h3>
 			{#each columnDrafts as d, i (d.id)}
 				<div class="palette-row">
