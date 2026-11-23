@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kanban-custom",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-13",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "BOARD", "class_name": "BoardRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
+  ]
+  // API_KEY: set a secret for production with `wrangler secret put API_KEY`,
+  // and a local value in .dev.vars (see .dev.vars.example) for `wrangler dev`.
+}
