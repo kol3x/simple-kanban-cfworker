@@ -9,6 +9,19 @@
 	);
 	let hex = $derived(store.colorHex(item.color));
 
+	let menu = $state<{ x: number; y: number } | null>(null);
+
+	function onContextMenu(e: MouseEvent) {
+		e.preventDefault();
+		// keep the menu inside the viewport
+		menu = { x: Math.min(e.clientX, innerWidth - 190), y: Math.min(e.clientY, innerHeight - 90) };
+	}
+
+	function deleteItem() {
+		menu = null;
+		store.send({ type: 'item.delete', id: item.id });
+	}
+
 	function onDragStart(e: DragEvent) {
 		store.dragging = item.id;
 		e.dataTransfer?.setData('text/plain', item.id);
@@ -39,6 +52,7 @@
 	ondragstart={onDragStart}
 	ondragend={onDragEnd}
 	ondragover={onDragOver}
+oncontextmenu={onContextMenu}
 	onclick={() => (store.editingId = item.id)}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (store.editingId = item.id)}
 	tabindex="0"
@@ -56,3 +70,27 @@
 		</div>
 	{/if}
 </div>
+
+{#if menu}
+	<!-- fixed overlay catches outside clicks / right-clicks to dismiss the menu -->
+	<div
+		class="ctx-overlay"
+		role="presentation"
+		onclick={() => (menu = null)}
+		oncontextmenu={(e) => {
+			e.preventDefault();
+			menu = null;
+		}}
+		onkeydown={(e) => e.key === 'Escape' && (menu = null)}
+	>
+		<div class="ctx-menu" role="menu" style={`left: ${menu.x}px; top: ${menu.y}px`}>
+			<button
+				class="menu-item ctx-danger"
+				role="menuitem"
+				onclick={deleteItem}
+			>
+				Delete
+			</button>
+		</div>
+	</div>
+{/if}

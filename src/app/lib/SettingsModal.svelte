@@ -94,12 +94,13 @@
 	}
 </script>
 
+<svelte:window onkeydown={(e) => store.settingsOpen && e.key === 'Escape' && discard()} />
+
 {#if store.settingsOpen}
 	<div
 		class="overlay"
 		role="presentation"
 		onclick={(e) => e.target === e.currentTarget && save()}
-		onkeydown={(e) => e.key === 'Escape' && discard()}
 	>
 		<div class="editor settings-editor" role="dialog" aria-label="Board settings">
 			<h3 class="palette-title">Columns</h3>

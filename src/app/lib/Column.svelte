@@ -8,6 +8,16 @@
 	let items = $derived(store.itemsIn(column.id));
 	let listEl = $state<HTMLElement | null>(null);
 
+	const PAGE = 20;
+	/** how many items of the column are currently rendered (grows via Show more) */
+	let shown = $state(PAGE);
+	let visibleItems = $derived(items.slice(0, shown));
+
+	// keep the fold-out consistent when items disappear or the column changes
+	$effect(() => {
+		if (shown > Math.max(items.length, PAGE)) shown = Math.max(items.length, PAGE);
+	});
+
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		const id = store.dragging;
@@ -76,15 +86,21 @@
 		</header>
 
 		<div class="column-list" bind:this={listEl}>
-			{#each items as item, i (item.id)}
+			{#each visibleItems as item, i (item.id)}
 				{#if store.dropTarget?.columnId === column.id && store.dropTarget.index === i && store.dragging && store.dragging !== item.id}
 					<div class="drop-line"></div>
 				{/if}
 				<ItemCard {item} />
 			{/each}
-			{#if store.dropTarget?.columnId === column.id && store.dropTarget.index >= items.length && store.dragging}
+			{#if store.dropTarget?.columnId === column.id && store.dropTarget.index >= visibleItems.length && store.dropTarget.index < items.length && store.dragging}
 				<div class="drop-line"></div>
 			{/if}
 		</div>
+
+		{#if items.length > shown}
+			<button class="btn ghost wide show-more" onclick={() => (shown += PAGE)}>
+				Show more ({items.length - shown} hidden)
+			</button>
+		{/if}
 	</section>
 {/if}
