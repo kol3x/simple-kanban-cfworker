@@ -1,15 +1,17 @@
 :root {
-	--bg: #2b2838;
-	--bg-column: #363248;
-	--bg-card: #413d59;
-	--bg-card-hover: #4c4866;
-	--text: #f0edf8;
-	--text-dim: #b6b0cc;
-	--accent: #9d7bff;
-	--danger: #e5484d;
-	--danger-text: #ff7d86;
-	--border: #827da8;
-	--radius: 8px;
+	--bg: #333333; /* classic neutral dark, lifted a step */
+	--bg-column: #3d3d3d;
+	--bg-card: #d8d5cd; /* light card surface */
+	--bg-card-hover: #e4e1d9;
+	--card-text: #1e1e1e;
+	--card-text-dim: #565656;
+	--text: #f5f5f5;
+	--text-dim: #c2c2c2;
+	--accent: #1f7abf; /* forum-era link blue, brightened for dark bg */
+	--danger: #d62020;
+	--danger-text: #ff8080;
+	--border: #7d7d7d;
+	--radius: 3px;
 }
 
 * {
@@ -52,7 +54,7 @@ textarea,
 select {
 	font: inherit;
 	color: var(--text);
-	background: #312d44;
+	background: #424242;
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	padding: 6px 9px;
@@ -65,13 +67,24 @@ select:focus {
 	border-color: var(--accent);
 }
 
+input::placeholder,
+textarea::placeholder {
+	color: #8a8a8a;
+	opacity: 1;
+}
+
 .btn {
-	background: var(--accent);
-	color: #241b40;
-	border: none;
+	/* glossy XP-era button */
+	background: linear-gradient(180deg, #f8f7f4, #d9d6cd);
+	color: #000000;
+	border: 1px solid #8a8a80;
 	border-radius: var(--radius);
 	padding: 7px 14px;
 	font-weight: 600;
+}
+
+.btn:hover {
+	background: linear-gradient(180deg, #ffffff, #e6e4dc);
 }
 
 .btn.ghost {
@@ -86,8 +99,9 @@ select:focus {
 }
 
 .btn.danger {
-	background: #d1303a;
+	background: linear-gradient(180deg, #e04040, #c00000);
 	color: #ffffff;
+	border-color: #8a0000;
 }
 
 .btn.wide {
@@ -110,25 +124,26 @@ select:focus {
 	color: var(--text);
 }
 
+/* the add-task button: bigger glyph so it reads, hit area unchanged */
+.icon-btn.add-item {
+	font-size: 20px;
+	line-height: 1;
+	padding: 3px 8px;
+}
+
 .icon-btn.danger:hover {
 	color: var(--danger-text);
 }
 
 /* layout */
-.app-header {
+.conn-status {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	padding: 12px 18px;
-}
-
-.settings {
-	position: relative;
-	margin-left: auto;
-}
-
-.settings-btn {
-	font-size: 18px;
+	gap: 8px;
+	padding: 8px 10px;
+	color: var(--text-dim);
+	font-size: 12px;
+	cursor: default;
 }
 
 .menu {
@@ -157,12 +172,6 @@ select:focus {
 
 .menu-item:hover {
 	background: #ffffff14;
-}
-
-.app-title {
-	font-size: 17px;
-	font-weight: 700;
-	color: var(--accent);
 }
 
 .conn {
@@ -201,7 +210,7 @@ select:focus {
 	width: min(320px, 90vw);
 	background: var(--bg-column);
 	padding: 28px;
-	border-radius: 12px;
+	border-radius: 4px;
 }
 
 .key-gate h1 {
@@ -218,10 +227,14 @@ select:focus {
 .board {
 	flex: 1;
 	display: flex;
-	align-items: flex-start;
-	gap: 12px;
-	padding: 6px 18px 18px;
+	padding: 0;
 	overflow-x: auto;
+}
+
+/* columns sit flush against each other, separated by a hairline only
+	(div. bumps specificity above .column-collapsed's border: none) */
+div.board > * + * {
+	border-left: 1px solid var(--border);
 }
 
 /* column */
@@ -231,8 +244,6 @@ select:focus {
 	display: flex;
 	flex-direction: column;
 	background: var(--bg-column);
-	border-radius: 12px;
-	max-height: calc(100% - 8px);
 }
 
 .column-header {
@@ -245,9 +256,8 @@ select:focus {
 .column-header h2,
 .column-title {
 	margin: 0;
-	font-size: 13px;
+	font-size: 16px;
 	font-weight: 600;
-	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--text-dim);
 	flex: 1;
@@ -274,10 +284,19 @@ select:focus {
 
 .count {
 	color: var(--text-dim);
-	font-size: 12px;
-	background: #ffffff10;
-	border-radius: 10px;
-	padding: 1px 8px;
+	font-size: 14px;
+	font-weight: 600;
+	border-bottom: 1px solid var(--border);
+	padding: 1px 0;
+}
+
+/* folded bars: the underline spans the full bar width, digits centered in
+	their block (baseline-sitting glyphs sit low, so bottom padding compensates) */
+.column-collapsed .count {
+	width: 100%;
+	text-align: center;
+	line-height: 1;
+	padding: 1px 0 6px;
 }
 
 .column-actions {
@@ -299,21 +318,27 @@ select:focus {
 	align-self: stretch;
 	background: var(--bg-column);
 	border: none;
-	border-radius: 12px;
 	color: var(--text-dim);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 10px;
 	padding: 12px 0;
-	max-height: calc(100% - 8px);
 }
 
-.column-collapsed span {
+/* only the title runs vertically; the count badge above it stays horizontal */
+.column-collapsed > span:last-child {
 	writing-mode: vertical-rl;
 	text-overflow: ellipsis;
 	overflow: hidden;
 	white-space: nowrap;
+}
+
+/* bigger vertical title, still inside the 42px collapsed bar */
+.column-collapsed > span:last-child {
+	font-size: 16px;
+	text-transform: uppercase;
+	font-weight: 600;
 }
 
 .column-collapsed:hover {
@@ -321,20 +346,21 @@ select:focus {
 }
 
 .show-more {
-	margin: 0 10px 10px;
+	margin: 4px 0 0;
 }
 
 /* cards */
 .item-card {
-	background: var(--bg-card);
+	/* tint the whole card with the task color, muted down to stay subtle */
+	background: color-mix(in srgb, var(--item-color, var(--bg-card)) 25%, var(--bg-card));
+	color: var(--card-text);
 	border-radius: var(--radius);
 	padding: 9px 11px;
 	cursor: grab;
-	border-left: 4px solid var(--item-color, transparent);
 }
 
 .item-card:hover {
-	background: var(--bg-card-hover);
+	background: color-mix(in srgb, var(--item-color, var(--bg-card-hover)) 25%, var(--bg-card-hover));
 }
 
 .item-card.dragging {
@@ -371,15 +397,15 @@ select:focus {
 
 .chip {
 	font-size: 11px;
-	color: var(--text-dim);
-	background: #ffffff14;
+	color: var(--card-text-dim);
+	background: #00000012;
 	border-radius: 6px;
 	padding: 1px 7px;
 }
 
 .chip.deadline.overdue {
-	color: #ffb4c0;
-	background: #e5484d2e;
+	color: #a00000;
+	background: #cc000026;
 }
 
 /* cards are wrapped in .card-slot so animate:flip can glide them when the
@@ -484,6 +510,34 @@ select:focus {
 	flex: 1;
 }
 
+/* daily report modal */
+.report-editor {
+	width: min(560px, 92vw);
+}
+
+.report-meta {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-dim);
+}
+
+.report-content {
+	white-space: pre-wrap;
+	line-height: 1.55;
+	font-size: 14px;
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.report-empty {
+	color: var(--text-dim);
+}
+
+.report-content strong {
+	font-weight: 600;
+}
+
 /* editor modal */
 .overlay {
 	position: fixed;
@@ -497,7 +551,7 @@ select:focus {
 .editor {
 	width: min(480px, 92vw);
 	background: var(--bg-column);
-	border-radius: 12px;
+	border-radius: 4px;
 	padding: 18px;
 	display: flex;
 	flex-direction: column;
@@ -582,7 +636,7 @@ select:focus {
 }
 
 .ctx-menu .ctx-danger:hover {
-	background: #e5484d33;
+	background: #cc000026;
 }
 
 /* read-only field views inside the item editor: plain text, not input-like */
@@ -628,7 +682,7 @@ select:focus {
 .confirm-box {
 	width: min(380px, 90vw);
 	background: var(--bg-column);
-	border-radius: 12px;
+	border-radius: 4px;
 	padding: 20px;
 	display: flex;
 	flex-direction: column;

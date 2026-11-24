@@ -1,4 +1,4 @@
-import type { BoardState, Color, ColumnState, ItemState, Op } from '../../shared/types';
+import type { BoardState, Color, ColumnState, ItemState, Op, Report } from '../../shared/types';
 
 function tempId(): string {
 	return `tmp-${crypto.randomUUID().slice(0, 8)}`;
@@ -18,6 +18,10 @@ export class BoardStore {
 	creatingIn = $state<string | null>(null);
 	/** board settings modal open (columns + palette) */
 	settingsOpen = $state(false);
+	/** latest daily report (server-generated, cached per UTC day) */
+	report = $state<Report | null>(null);
+	/** daily report modal open */
+	reportOpen = $state(false);
 	/** ids of recently created items — cards with these ids play their entrance animation */
 	freshIds = $state<Set<string>>(new Set());
 	/** color pre-selected for newly created items ('none' = uncolored) */
@@ -140,6 +144,26 @@ export class BoardStore {
 		return true;
 	}
 
+	/** store a report and auto-open the modal once per UTC day per device */
+	#setReport(report: Report | null): void {
+		this.report = report;
+		if (!report || this.reportOpen) return;
+		if (report.day !== new Date().toISOString().slice(0, 10)) return;
+		let seen: string | null = null;
+		try {
+			seen = localStorage.getItem('kanban.reportSeen');
+		} catch {
+			// storage unavailable — treat as never seen
+		}
+		if (seen === report.day) return;
+		try {
+			localStorage.setItem('kanban.reportSeen', report.day);
+		} catch {
+			// non-fatal: worst case it slides in again on next reload
+		}
+		this.reportOpen = true;
+	}
+
 	#connect(): void {
 		const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 		const ws = new WebSocket(`${proto}://${location.host}/ws?key=${encodeURIComponent(this.#key)}`);
@@ -149,10 +173,17 @@ export class BoardStore {
 			this.#retries = 0;
 		};
 		ws.onmessage = (e) => {
-			const msg = JSON.parse(e.data) as { type: string; board?: BoardState };
+			const msg = JSON.parse(e.data) as {
+				type: string;
+				board?: BoardState;
+				report?: Report | null;
+			};
 			if (msg.type === 'snapshot' && msg.board) {
 				this.#applySnapshot(msg.board);
+				if (msg.report !== undefined) this.#setReport(msg.report);
 				for (const w of this.#snapshotWaiters.splice(0)) w();
+			} else if (msg.type === 'report' && msg.report) {
+				this.#setReport(msg.report);
 			}
 		};
 		ws.onclose = () => {

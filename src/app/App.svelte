@@ -3,6 +3,7 @@
 	import Board from './lib/Board.svelte';
 	import ItemEditor from './lib/ItemEditor.svelte';
 	import SettingsModal from './lib/SettingsModal.svelte';
+	import ReportModal from './lib/ReportModal.svelte';
 
 	let keyInput = $state('');
 	let busy = $state(false);
@@ -41,20 +42,10 @@
 {:else if store.loadError}
 	<div class="loading error">{store.loadError}</div>
 {:else if store.state.columns.length > 0 || store.connected}
-	<div class="app-header">
-		<span class="app-title">Kanban</span>
-		<span class="conn {store.connected ? 'on' : 'off'}" title={store.connected ? 'live' : 'reconnecting…'}></span>
-		<button
-			class="icon-btn settings-btn"
-			title="Settings"
-			aria-label="Settings"
-			onclick={() => (store.settingsOpen = true)}
-			>⚙</button
-		>
-	</div>
 	<Board />
 	<ItemEditor />
 	<SettingsModal />
+	<ReportModal />
 {:else}
 	<div class="loading">Loading…</div>
 {/if}
