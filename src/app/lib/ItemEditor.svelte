@@ -210,7 +210,7 @@
 		class="overlay"
 		role="presentation"
 		transition:fade={{ duration: reducedMotion() ? 0 : 150 }}
-		onclick={(e) => e.target === e.currentTarget && save()}
+		onclick={(e) => e.target === e.currentTarget && (creating ? discard() : save())}
 	>
 		<div
 			class="editor"

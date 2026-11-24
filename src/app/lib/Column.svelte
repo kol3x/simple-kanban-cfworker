@@ -56,8 +56,8 @@
 		title="Expand column"
 		onclick={() => store.send({ type: 'column.toggleCollapse', id: column.id })}
 	>
+		<span class="count">{Math.min(items.length, 20)}</span>
 		<span>{column.title}</span>
-		<span class="count">{items.length}</span>
 	</button>
 {:else}
 	<section
@@ -75,7 +75,6 @@
 			>
 				{column.title}
 			</button>
-			<span class="count">{items.length}</span>
 			<div class="column-actions">
 				<button
 					class="icon-btn add-item"
@@ -98,12 +97,12 @@
 			{#if store.dropTarget?.columnId === column.id && store.dropTarget.index >= visibleItems.length && store.dropTarget.index < items.length && store.dragging}
 				<div class="drop-line"></div>
 			{/if}
+			{#if items.length > shown}
+				<button class="btn ghost wide show-more" onclick={() => (shown += PAGE)}>
+					Show more ({items.length - shown} hidden)
+				</button>
+			{/if}
 		</div>
 
-		{#if items.length > shown}
-			<button class="btn ghost wide show-more" onclick={() => (shown += PAGE)}>
-				Show more ({items.length - shown} hidden)
-			</button>
-		{/if}
 	</section>
 {/if}
