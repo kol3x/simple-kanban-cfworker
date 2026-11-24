@@ -49,6 +49,13 @@ export interface BoardState {
 	items: ItemState[];
 }
 
+/** Daily AI-generated rundown. `day` is the UTC date it was generated for. */
+export interface Report {
+	day: string;
+	content: string;
+	generatedAt: number;
+}
+
 export type Op =
 	| { type: 'color.update'; id: string; name?: string; hex?: string }
 	| { type: 'color.create'; id?: string; name: string; hex: string }

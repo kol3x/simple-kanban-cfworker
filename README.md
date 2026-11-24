@@ -4,7 +4,9 @@ Single-board, single-user kanban on Cloudflare Workers. Svelte 5 SPA + one SQLit
 Durable Object (`BoardRoom`) with Hibernation WebSockets for live multi-device sync.
 
 Features: columns (collapsible, renameable), items with title / description / optional
-deadline (YYYY-MM-DD) / color, drag & drop.
+deadline (YYYY-MM-DD) / color, drag & drop, plus a daily AI report: generated weekdays
+at 07:00 UTC from the current board via OpenRouter, auto-slides in once per day
+(Esc closes), re-openable via right-click → "Daily report…".
 
 ## Layout
 
@@ -34,6 +36,19 @@ One API key, checked on every API request and the WS handshake.
 - local dev: `cp .dev.vars.example .dev.vars` (set your own key)
 - production: `wrangler secret put API_KEY`
 - HTTP: `Authorization: Bearer <key>`; WS: `?key=<key>` (browsers can't set WS headers)
+
+## Daily report
+
+A cron trigger (`0 7 * * 1-5`, weekdays only) makes the worker ask the Durable Object
+to summarize the board via OpenRouter. The report is cached per UTC day in SQLite and
+pushed over the WebSocket to live clients; connected browsers auto-open it once per
+day (tracked in `localStorage`), and it can always be re-opened from the right-click
+context menu.
+
+Secrets/vars: `OPENROUTER_API_KEY` (`wrangler secret put OPENROUTER_API_KEY`, also in
+`.dev.vars` locally) and `OPENROUTER_MODEL` (wrangler var, default
+`z-ai/glm-5.3`). Local testing: `wrangler dev --test-scheduled`, then
+`curl "http://localhost:8787/__scheduled?cron=0+7+*+*+1-5"`.
 
 ## Ops protocol
 

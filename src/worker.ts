@@ -50,6 +50,22 @@ function authorized(request: Request, env: Env, allowQuery = false): boolean {
 }
 
 export default {
+	// Daily report, weekdays at 07:00 UTC. The DO skips if a report for today
+	// already exists, so manual re-triggers (e.g. `__scheduled` in dev) are safe.
+	async scheduled(_controller, env): Promise<void> {
+		const dow = new Date().getUTCDay();
+		if (dow === 0 || dow === 6) return; // belt & braces; cron already filters weekends
+		if (!env.OPENROUTER_API_KEY) {
+			console.error('daily report skipped: OPENROUTER_API_KEY not set');
+			return;
+		}
+		const stub = env.BOARD.get(env.BOARD.idFromName('main'));
+		const res = await stub.fetch('https://board-room/report/generate', { method: 'POST' });
+		if (!res.ok) {
+			console.error('daily report failed:', res.status, await res.text());
+		}
+	},
+
 	async fetch(request, env): Promise<Response> {
 		const url = new URL(request.url);
 

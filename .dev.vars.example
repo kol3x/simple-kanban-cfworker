@@ -1,2 +1,4 @@
 # Copy to .dev.vars for `wrangler dev` / `npm run dev` proxying.
 API_KEY=local-dev-key
+# Required for the weekday 07:00 UTC daily report (openrouter.ai key)
+OPENROUTER_API_KEY=

@@ -1,10 +1,13 @@
 import { DurableObject } from 'cloudflare:workers';
 import { DEFAULT_COLORS } from './shared/types';
+import { REPORT_SYSTEM_INSTRUCTION, buildReportPrompt } from './shared/report';
 import { validateOp } from './shared/validate';
-import type { BoardState, ColorDef, ItemState, Op } from './shared/types';
+import type { BoardState, ColorDef, ItemState, Op, Report } from './shared/types';
 
 interface Env {
 	BOARD: DurableObjectNamespace;
+	OPENROUTER_API_KEY?: string;
+	OPENROUTER_MODEL?: string;
 }
 
 interface ItemRow {
@@ -35,7 +38,7 @@ interface ColorRow {
 
 const DEFAULT_COLUMNS = ['To Do', 'Doing', 'Done'];
 
-export class BoardRoom extends DurableObject {
+export class BoardRoom extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS columns (
@@ -54,6 +57,11 @@ export class BoardRoom extends DurableObject {
 			color TEXT NOT NULL DEFAULT 'none',
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
+		)`);
+		this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS reports (
+			day TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			created_at INTEGER NOT NULL
 		)`);
 		this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS colors (
 			id TEXT PRIMARY KEY,
@@ -95,6 +103,10 @@ export class BoardRoom extends DurableObject {
 				headers: { 'content-type': 'application/json' }
 			});
 		}
+		if (url.pathname === '/report/generate') {
+			// internal route — only reachable from the worker's scheduled handler
+			return this.#generateReport();
+		}
 		if (url.pathname === '/ws') {
 			if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
 				return new Response('expected websocket upgrade', { status: 400 });
@@ -102,7 +114,7 @@ export class BoardRoom extends DurableObject {
 			const pair = new WebSocketPair();
 			const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
 			this.ctx.acceptWebSocket(server);
-			server.send(JSON.stringify({ type: 'snapshot', board: this.#snapshot() }));
+			server.send(JSON.stringify({ type: 'snapshot', board: this.#snapshot(), report: this.#latestReport() }));
 			return new Response(null, { status: 101, webSocket: client });
 		}
 		return new Response('not found', { status: 404 });
@@ -150,8 +162,7 @@ export class BoardRoom extends DurableObject {
 		}
 	}
 
-	#broadcastSnapshot(): void {
-		const msg = JSON.stringify({ type: 'snapshot', board: this.#snapshot() });
+	#broadcast(msg: string): void {
 		for (const ws of this.ctx.getWebSockets()) {
 			try {
 				ws.send(msg);
@@ -159,6 +170,76 @@ export class BoardRoom extends DurableObject {
 				// ignore dead sockets; close/error handlers clean up
 			}
 		}
+	}
+
+	#broadcastSnapshot(): void {
+		this.#broadcast(JSON.stringify({ type: 'snapshot', board: this.#snapshot() }));
+	}
+
+	#latestReport(): Report | null {
+		const rows = this.ctx.storage.sql
+			.exec('SELECT day, content, created_at FROM reports ORDER BY day DESC LIMIT 1')
+			.toArray() as unknown as Array<{ day: string; content: string; created_at: number }>;
+		const r = rows[0];
+		return r ? { day: r.day, content: r.content, generatedAt: r.created_at } : null;
+	}
+
+	#json(data: unknown, status = 200): Response {
+		return new Response(JSON.stringify(data), {
+			status,
+			headers: { 'content-type': 'application/json' }
+		});
+	}
+
+	/** Generate today's report via OpenRouter, cache it per UTC day, push to live clients. */
+	async #generateReport(): Promise<Response> {
+		if (!this.env.OPENROUTER_API_KEY) {
+			return this.#json({ error: 'OPENROUTER_API_KEY not configured' }, 503);
+		}
+		const day = new Date().toISOString().slice(0, 10);
+		const existing = (
+			this.ctx.storage.sql
+				.exec('SELECT day, content, created_at FROM reports WHERE day = ?', day)
+				.toArray() as unknown as Array<{ day: string; content: string; created_at: number }>
+		)[0];
+		if (existing) return this.#json({ day: existing.day, content: existing.content, generatedAt: existing.created_at });
+
+		let content = '';
+		try {
+			const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					authorization: `Bearer ${this.env.OPENROUTER_API_KEY}`,
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify({
+					model: this.env.OPENROUTER_MODEL || 'z-ai/glm-5.3',
+					messages: [
+						{ role: 'system', content: REPORT_SYSTEM_INSTRUCTION },
+						{ role: 'user', content: buildReportPrompt(this.#snapshot()) }
+					]
+				})
+			});
+			if (!res.ok) {
+				const detail = (await res.text()).slice(0, 300);
+				return this.#json({ error: `openrouter ${res.status}: ${detail}` }, 502);
+			}
+			const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+			content = data.choices?.[0]?.message?.content?.trim() ?? '';
+		} catch (e) {
+			return this.#json({ error: `openrouter request failed: ${e instanceof Error ? e.message : 'unknown'}` }, 502);
+		}
+		if (!content) return this.#json({ error: 'openrouter returned an empty completion' }, 502);
+
+		const report: Report = { day, content, generatedAt: Date.now() };
+		this.ctx.storage.sql.exec(
+			'INSERT INTO reports (day, content, created_at) VALUES (?, ?, ?)',
+			report.day,
+			report.content,
+			report.generatedAt
+		);
+		this.#broadcast(JSON.stringify({ type: 'report', report }));
+		return this.#json(report);
 	}
 
 	#count(table: 'columns' | 'items' | 'colors'): number {
