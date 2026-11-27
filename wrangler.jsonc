@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kanban-custom",
   "main": "src/worker.ts",
+  // only the real domain serves traffic; the preview URL is disabled
+  "workers_dev": false,
   "compatibility_date": "2026-10-13",
   "assets": {
     "directory": "./dist",
