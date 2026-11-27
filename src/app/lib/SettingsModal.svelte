@@ -7,6 +7,7 @@
 	interface ColumnDraft {
 		id: string;
 		name: string;
+		dateGrouped: boolean;
 	}
 	interface ColorDraft {
 		id: string;
@@ -31,7 +32,9 @@
 	$effect(() => {
 		if (store.settingsOpen) {
 			untrack(() => {
-				columnDrafts = store.columns().map((c) => ({ id: c.id, name: c.title }));
+				columnDrafts = store
+					.columns()
+					.map((c) => ({ id: c.id, name: c.title, dateGrouped: c.dateGrouped }));
 				colorDrafts = store.state.colors.map((c) => ({ id: c.id, name: c.name, hex: c.hex }));
 				newColumnName = '';
 				newColorName = '';
@@ -49,7 +52,11 @@
 			return;
 		}
 	const created = untrack(() => store.state.columns.find((c) => !before.has(c.id)));
-	if (created) columnDrafts = [...columnDrafts, { id: created.id, name: created.title }];
+	if (created)
+		columnDrafts = [
+			...columnDrafts,
+			{ id: created.id, name: created.title, dateGrouped: created.dateGrouped }
+		];
 		newColumnName = '';
 	}
 
@@ -74,6 +81,9 @@
 			if (!original) continue;
 			if (name && name !== original.title) {
 				store.send({ type: 'column.rename', id: d.id, title: name });
+			}
+			if (d.dateGrouped !== original.dateGrouped) {
+				store.send({ type: 'column.setDateGrouped', id: d.id, value: d.dateGrouped });
 			}
 		}
 		for (const d of colorDrafts) {
@@ -111,91 +121,101 @@
 			aria-label="Board settings"
 			transition:pop
 		>
-			<h3 class="palette-title">Columns</h3>
-			{#each columnDrafts as d, i (d.id)}
-				<div class="palette-row">
-					<input
-						type="text"
-						bind:value={columnDrafts[i]!.name}
-						maxlength="100"
-						aria-label="Column name"
-					/>
-					<button
-						class="icon-btn danger"
-						title="Delete column"
-						aria-label={`Delete column ${d.name}`}
-						onclick={() => removeColumn(d)}
-					>×</button>
-				</div>
-			{/each}
-			<div class="settings-add">
-				<input
-					type="text"
-					placeholder="New column name…"
-					bind:value={newColumnName}
-					maxlength="100"
-					aria-label="New column name"
-					onkeydown={(e) => e.key === 'Enter' && addColumn()}
-				/>
-				<button class="btn ghost" onclick={addColumn} disabled={!newColumnName.trim()}>
-					Add column
-				</button>
-			</div>
-
-			<h3 class="palette-title">Colors</h3>
-			{#each colorDrafts as d, i (d.id)}
-				<div class="palette-row">
-					<input
-						type="color"
-						bind:value={colorDrafts[i]!.hex}
-						aria-label={`Color for ${d.name}`}
-					/>
-					<input
-						type="text"
-						bind:value={colorDrafts[i]!.name}
-						maxlength="50"
-						aria-label="Color name"
-					/>
-				</div>
-			{/each}
-			<div class="palette-row settings-add">
-				<input type="color" bind:value={newColorHex} aria-label="New color" />
-				<input
-					type="text"
-					placeholder="New color name…"
-					bind:value={newColorName}
-					maxlength="50"
-					aria-label="New color name"
-					onkeydown={(e) => e.key === 'Enter' && addColor()}
-				/>
-				<button class="btn ghost" onclick={addColor} disabled={!newColorName.trim()}>
-					Add color
-				</button>
-			</div>
-
-			<h3 class="palette-title">Default color for new items</h3>
-			<div class="palette-row">
-				<span class="swatches" role="listbox" aria-label="Default item color">
-					<button
-						type="button"
-						class="swatch swatch-none"
-						class:selected={store.defaultColor === 'none'}
-						title="No color"
-						aria-label="No color"
-						onclick={() => store.setDefaultColor('none')}
-					></button>
-					{#each store.state.colors as c (c.id)}
-						<button
-							type="button"
-							class="swatch"
-							class:selected={store.defaultColor === c.id}
-							style={`background: ${c.hex}`}
-							title={c.name}
-							aria-label={c.name}
-							onclick={() => store.setDefaultColor(c.id)}
-						></button>
+			<div class="settings-columns">
+				<section class="settings-col">
+					<h3 class="palette-title">Columns</h3>
+					{#each columnDrafts as d, i (d.id)}
+						<div class="palette-row">
+							<input
+								type="text"
+								bind:value={columnDrafts[i]!.name}
+								maxlength="100"
+								aria-label="Column name"
+							/>
+							<label class="date-toggle" title="Group items by the day they land in this column">
+								<input type="checkbox" bind:checked={columnDrafts[i]!.dateGrouped} />
+								by date
+							</label>
+							<button
+								class="icon-btn danger"
+								title="Delete column"
+								aria-label={`Delete column ${d.name}`}
+								onclick={() => removeColumn(d)}
+							>×</button>
+						</div>
 					{/each}
-				</span>
+					<div class="settings-add">
+						<input
+							type="text"
+							placeholder="New column name…"
+							bind:value={newColumnName}
+							maxlength="100"
+							aria-label="New column name"
+							onkeydown={(e) => e.key === 'Enter' && addColumn()}
+						/>
+						<button class="btn ghost" onclick={addColumn} disabled={!newColumnName.trim()}>
+							Add column
+						</button>
+					</div>
+				</section>
+
+				<section class="settings-col">
+					<h3 class="palette-title">Colors</h3>
+					{#each colorDrafts as d, i (d.id)}
+						<div class="palette-row">
+							<input
+								type="color"
+								bind:value={colorDrafts[i]!.hex}
+								aria-label={`Color for ${d.name}`}
+							/>
+							<input
+								type="text"
+								bind:value={colorDrafts[i]!.name}
+								maxlength="50"
+								aria-label="Color name"
+							/>
+						</div>
+					{/each}
+					<div class="palette-row settings-add">
+						<input type="color" bind:value={newColorHex} aria-label="New color" />
+						<input
+							type="text"
+							placeholder="New color name…"
+							bind:value={newColorName}
+							maxlength="50"
+							aria-label="New color name"
+							onkeydown={(e) => e.key === 'Enter' && addColor()}
+						/>
+						<button class="btn ghost" onclick={addColor} disabled={!newColorName.trim()}>
+							Add color
+						</button>
+					</div>
+
+					<h3 class="palette-title">Default color for new items</h3>
+					<div class="palette-row">
+						<span class="swatches" role="listbox" aria-label="Default item color">
+							<button
+								type="button"
+								class="swatch swatch-none"
+								class:selected={store.defaultColor === 'none'}
+								title="No color"
+								aria-label="No color"
+								onclick={() => store.setDefaultColor('none')}
+							></button>
+							{#each store.state.colors as c (c.id)}
+								<button
+									type="button"
+									class="swatch"
+									class:selected={store.defaultColor === c.id}
+									style={`background: ${c.hex}`}
+									title={c.name}
+									aria-label={c.name}
+									onclick={() => store.setDefaultColor(c.id)}
+								></button>
+							{/each}
+						</span>
+					</div>
+				</section>
 			</div>
 
 			<div class="editor-actions">
