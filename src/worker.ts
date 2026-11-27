@@ -50,7 +50,7 @@ function authorized(request: Request, env: Env, allowQuery = false): boolean {
 }
 
 export default {
-	// Daily report, weekdays at 07:00 UTC. The DO skips if a report for today
+	// Daily report, Mon–Fri at 07:00 UTC. The DO skips if a report for today
 	// already exists, so manual re-triggers (e.g. `__scheduled` in dev) are safe.
 	async scheduled(_controller, env): Promise<void> {
 		const dow = new Date().getUTCDay();

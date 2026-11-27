@@ -17,8 +17,11 @@
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ],
   "triggers": {
-    // daily report, weekdays only (Sat/Sun filtered again in the scheduled handler)
+    // daily report, Mon–Fri only (the scheduled handler still skips weekends as a safeguard)
     "crons": ["0 7 * * 1-5"]
+  },
+  "observability": {
+    "enabled": true
   },
   "vars": {
     "OPENROUTER_MODEL": "z-ai/glm-5.3"

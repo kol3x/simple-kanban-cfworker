@@ -4,7 +4,7 @@ Single-board, single-user kanban on Cloudflare Workers. Svelte 5 SPA + one SQLit
 Durable Object (`BoardRoom`) with Hibernation WebSockets for live multi-device sync.
 
 Features: columns (collapsible, renameable), items with title / description / optional
-deadline (YYYY-MM-DD) / color, drag & drop, plus a daily AI report: generated weekdays
+deadline (YYYY-MM-DD) / color, drag & drop, plus a daily AI report: generated Mon–Fri
 at 07:00 UTC from the current board via OpenRouter, auto-slides in once per day
 (Esc closes), re-openable via right-click → "Daily report…".
 
@@ -39,7 +39,7 @@ One API key, checked on every API request and the WS handshake.
 
 ## Daily report
 
-A cron trigger (`0 7 * * 1-5`, weekdays only) makes the worker ask the Durable Object
+A cron trigger (`0 7 * * 1-5`, Mon–Fri only) makes the worker ask the Durable Object
 to summarize the board via OpenRouter. The report is cached per UTC day in SQLite and
 pushed over the WebSocket to live clients; connected browsers auto-open it once per
 day (tracked in `localStorage`), and it can always be re-opened from the right-click
