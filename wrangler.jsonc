@@ -17,8 +17,10 @@
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ],
   "triggers": {
-    // daily report, Mon–Fri only (the scheduled handler still skips weekends as a safeguard)
-    "crons": ["0 7 * * 1-5"]
+    // daily report, Mon–Fri only. NB: Cloudflare cron triggers use Quartz numbering
+    // for weekdays (1 = Sunday), so Mon–Fri is 2-6 — NOT 1-5 as in classic cron.
+    // The scheduled handler still skips weekends as a safeguard.
+    "crons": ["0 7 * * 2-6"]
   },
   "observability": {
     "enabled": true

@@ -39,7 +39,8 @@ One API key, checked on every API request and the WS handshake.
 
 ## Daily report
 
-A cron trigger (`0 7 * * 1-5`, Mon–Fri only) makes the worker ask the Durable Object
+A cron trigger (`0 7 * * 2-6`, Mon–Fri only — Cloudflare cron uses Quartz numbering,
+1 = Sunday) makes the worker ask the Durable Object
 to summarize the board via OpenRouter. The report is cached per UTC day in SQLite and
 pushed over the WebSocket to live clients; connected browsers auto-open it once per
 day (tracked in `localStorage`), and it can always be re-opened from the right-click
@@ -48,7 +49,7 @@ context menu.
 Secrets/vars: `OPENROUTER_API_KEY` (`wrangler secret put OPENROUTER_API_KEY`, also in
 `.dev.vars` locally) and `OPENROUTER_MODEL` (wrangler var, default
 `z-ai/glm-5.3`). Local testing: `wrangler dev --test-scheduled`, then
-`curl "http://localhost:8787/__scheduled?cron=0+7+*+*+1-5"`.
+`curl "http://localhost:8787/__scheduled?cron=0+7+*+*+2-6"`.
 
 ## Ops protocol
 

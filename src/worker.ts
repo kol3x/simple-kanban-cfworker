@@ -54,6 +54,8 @@ export default {
 	// already exists, so manual re-triggers (e.g. `__scheduled` in dev) are safe.
 	async scheduled(_controller, env): Promise<void> {
 		const dow = new Date().getUTCDay();
+		// NB: JS getUTCDay() numbering (0 = Sunday) — differs from the cron string,
+		// where Cloudflare uses Quartz numbering (1 = Sunday), see wrangler.jsonc
 		if (dow === 0 || dow === 6) return; // belt & braces; cron already filters weekends
 		if (!env.OPENROUTER_API_KEY) {
 			console.error('daily report skipped: OPENROUTER_API_KEY not set');
