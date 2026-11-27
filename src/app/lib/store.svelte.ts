@@ -99,6 +99,19 @@ export class BoardStore {
 			.sort((a, b) => a.position - b.position);
 	}
 
+	/** the order a column's items are shown in — date-grouped columns sort by
+		day (newest first, undated at the bottom), then by position within the day */
+	displayItems(columnId: string): ItemState[] {
+		const col = this.state.columns.find((c) => c.id === columnId);
+		const items = this.itemsIn(columnId);
+		if (!col?.dateGrouped) return items;
+		const key = (i: ItemState) => i.doneDate ?? '';
+		return [...items].sort(
+			(a, b) =>
+				(key(b) < key(a) ? -1 : key(b) > key(a) ? 1 : 0) || a.position - b.position
+		);
+	}
+
 	columns(): ColumnState[] {
 		return [...this.state.columns].sort((a, b) => a.position - b.position);
 	}
@@ -230,7 +243,28 @@ export class BoardStore {
 				return;
 			}
 			case 'column.create': {
-				s.columns.push({ id: tempId(), title: op.title, position: s.columns.length, collapsed: false });
+				s.columns.push({
+					id: tempId(),
+					title: op.title,
+					position: s.columns.length,
+					collapsed: false,
+					dateGrouped: false
+				});
+				break;
+			}
+			case 'column.setDateGrouped': {
+				const c = s.columns.find((c) => c.id === op.id);
+				if (!c) break;
+				c.dateGrouped = op.value;
+				if (op.value) {
+					// stamp undated items with the day they were last touched
+					for (const it of this.itemsIn(op.id)) {
+						if (it.doneDate === null) {
+							it.doneDate = new Date(it.updatedAt).toISOString().slice(0, 10);
+						}
+					}
+					this.displayItems(op.id).forEach((it, i) => (it.position = i));
+				}
 				break;
 			}
 			case 'column.rename': {
@@ -265,6 +299,7 @@ export class BoardStore {
 					title: op.title,
 					description: op.description ?? '',
 					deadline: op.deadline ?? null,
+					doneDate: col.dateGrouped ? new Date().toISOString().slice(0, 10) : null,
 					color: op.color ?? 'none',
 					createdAt: Date.now(),
 					updatedAt: Date.now()
@@ -287,6 +322,30 @@ export class BoardStore {
 			case 'item.move': {
 				const item = s.items.find((i) => i.id === op.id);
 				if (!item) break;
+				const targetCol = s.columns.find((c) => c.id === op.toColumnId);
+				if (targetCol?.dateGrouped) {
+					// the item adopts the day of the group it is dropped into: the
+					// card above the insertion point wins (at a boundary that means
+					// the group it was dropped at the end of); empty column → today.
+					// Dragging between groups is how items get re-dated / backfilled.
+					const sameCol = item.columnId === op.toColumnId;
+					if (!sameCol) {
+						const source = this.itemsIn(item.columnId).filter((i) => i.id !== op.id);
+						for (let i = item.position + 1; i < source.length + 1; i++) {
+							const it = source.find((x) => x.position === i);
+							if (it) it.position--;
+						}
+					}
+					item.columnId = op.toColumnId;
+					const target = this.displayItems(op.toColumnId).filter((i) => i.id !== op.id);
+					const gi = Math.min(Math.max(op.index, 0), target.length);
+					const today = new Date().toISOString().slice(0, 10);
+					item.doneDate = target[gi - 1]?.doneDate ?? today;
+					target.splice(gi, 0, item);
+					target.forEach((it, i) => (it.position = i));
+					break;
+				}
+				item.doneDate = null;
 				const source = this.itemsIn(item.columnId).filter((i) => i.id !== op.id);
 				for (let i = item.position + 1; i < source.length + 1; i++) {
 					const it = source.find((x) => x.position === i);

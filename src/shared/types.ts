@@ -28,6 +28,8 @@ export interface ColumnState {
 	title: string;
 	position: number;
 	collapsed: boolean;
+	/** group items by the day they landed in this column (e.g. a Done log) */
+	dateGrouped: boolean;
 }
 
 export interface ItemState {
@@ -38,6 +40,8 @@ export interface ItemState {
 	description: string;
 	/** ISO date `YYYY-MM-DD` or null */
 	deadline: string | null;
+	/** day the item landed in a date-grouped column (UTC `YYYY-MM-DD`), null elsewhere */
+	doneDate: string | null;
 	color: Color;
 	createdAt: number;
 	updatedAt: number;
@@ -62,6 +66,7 @@ export type Op =
 	| { type: 'column.create'; title: string }
 	| { type: 'column.rename'; id: string; title: string }
 	| { type: 'column.toggleCollapse'; id: string }
+	| { type: 'column.setDateGrouped'; id: string; value: boolean }
 	| { type: 'column.delete'; id: string }
 	| {
 			type: 'item.create';

@@ -145,6 +145,17 @@ export function validateOp(input: unknown): Result<Op> {
 			if (!id.ok) return id;
 			return { ok: true, value: { type: 'column.toggleCollapse', id: id.value } };
 		}
+		case 'column.setDateGrouped': {
+			const id = validId(input['id'], 'id');
+			if (!id.ok) return id;
+			if (typeof input['value'] !== 'boolean') {
+				return { ok: false, error: 'value must be a boolean' };
+			}
+			return {
+				ok: true,
+				value: { type: 'column.setDateGrouped', id: id.value, value: input['value'] }
+			};
+		}
 		case 'column.delete': {
 			const id = validId(input['id'], 'id');
 			if (!id.ok) return id;

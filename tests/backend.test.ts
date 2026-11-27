@@ -302,3 +302,85 @@ describe('realtime', () => {
 		}
 	});
 });
+
+describe('date-grouped columns', () => {
+	const todayUTC = () => new Date().toISOString().slice(0, 10);
+
+	it('stamps existing items with a day when grouping is enabled', async () => {
+		const colId = await freshColumn('Done');
+		const socket = await openSocket();
+		try {
+			await socket.send({ type: 'item.create', columnId: colId, title: 'A' });
+			await socket.send({ type: 'item.create', columnId: colId, title: 'B' });
+			const msg = await socket.send({ type: 'column.setDateGrouped', id: colId, value: true });
+			const b = msg['board'] as BoardState;
+			expect(b.columns.find((c) => c.id === colId)?.dateGrouped).toBe(true);
+			expect(itemsIn(b, colId).map((i) => i.doneDate)).toEqual([todayUTC(), todayUTC()]);
+		} finally {
+			socket.close();
+		}
+	});
+
+	it('a task moved in from another column lands in today’s group', async () => {
+		const doneId = await freshColumn('Done dg');
+		const todoId = await freshColumn('Todo dg');
+		const socket = await openSocket();
+		try {
+			await socket.send({ type: 'item.create', columnId: todoId, title: 'Task' });
+			await socket.send({ type: 'item.create', columnId: doneId, title: 'Earlier today' });
+			await socket.send({ type: 'column.setDateGrouped', id: doneId, value: true });
+			const board = await snapshot();
+			const task = findItem(board, 'Task');
+			if (!task) throw new Error('task not found');
+			// even at index 0 the item cannot land before today's group start
+			const msg = await socket.send({
+				type: 'item.move',
+				id: task.id,
+				toColumnId: doneId,
+				index: 0
+			});
+			const b = msg['board'] as BoardState;
+			const items = itemsIn(b, doneId);
+			expect(items.map((i) => i.title)).toEqual(['Task', 'Earlier today']);
+			expect(items.map((i) => i.doneDate)).toEqual([todayUTC(), todayUTC()]);
+			expect(items.map((i) => i.position)).toEqual([0, 1]);
+		} finally {
+			socket.close();
+		}
+	});
+
+	it('keeps the day when moving an item within the column', async () => {
+		const colId = await freshColumn('Done dg2');
+		const socket = await openSocket();
+		try {
+			await socket.send({ type: 'item.create', columnId: colId, title: 'A' });
+			await socket.send({ type: 'item.create', columnId: colId, title: 'B' });
+			await socket.send({ type: 'item.create', columnId: colId, title: 'C' });
+			await socket.send({ type: 'column.setDateGrouped', id: colId, value: true });
+			const board = await snapshot();
+			const c = findItem(board, 'C');
+			if (!c) throw new Error('item not found');
+			const msg = await socket.send({ type: 'item.move', id: c.id, toColumnId: colId, index: 0 });
+			const b = msg['board'] as BoardState;
+			const items = itemsIn(b, colId);
+			expect(items.map((i) => i.title)).toEqual(['C', 'A', 'B']);
+			expect(items.every((i) => i.doneDate === todayUTC())).toBe(true);
+		} finally {
+			socket.close();
+		}
+	});
+
+	it('rejects a setDateGrouped op with a non-boolean value', async () => {
+		const socket = await openSocket();
+		try {
+			await socket.waitFor((m) => m['type'] === 'snapshot');
+			socket.ws.send(
+				JSON.stringify({ type: 'column.setDateGrouped', id: 'whatever', value: 'yes' })
+			);
+			const err = await socket.next((m) => m['type'] === 'error');
+			expect(err['error']).toMatch(/boolean/);
+		} finally {
+			socket.close();
+		}
+	});
+});

@@ -17,6 +17,7 @@ interface ItemRow {
 	title: string;
 	description: string;
 	deadline: string | null;
+	done_date: string | null;
 	color: string;
 	created_at: number;
 	updated_at: number;
@@ -27,6 +28,7 @@ interface ColumnRow {
 	title: string;
 	position: number;
 	collapsed: number;
+	date_grouped: number;
 }
 
 interface ColorRow {
@@ -45,7 +47,8 @@ export class BoardRoom extends DurableObject<Env> {
 			id TEXT PRIMARY KEY,
 			title TEXT NOT NULL,
 			position INTEGER NOT NULL,
-			collapsed INTEGER NOT NULL DEFAULT 0
+			collapsed INTEGER NOT NULL DEFAULT 0,
+			date_grouped INTEGER NOT NULL DEFAULT 0
 		)`);
 		this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS items (
 			id TEXT PRIMARY KEY,
@@ -54,10 +57,22 @@ export class BoardRoom extends DurableObject<Env> {
 			title TEXT NOT NULL,
 			description TEXT NOT NULL DEFAULT '',
 			deadline TEXT,
+			done_date TEXT,
 			color TEXT NOT NULL DEFAULT 'none',
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		)`);
+		// migrations for boards created before these columns existed
+		for (const stmt of [
+			'ALTER TABLE columns ADD COLUMN date_grouped INTEGER NOT NULL DEFAULT 0',
+			'ALTER TABLE items ADD COLUMN done_date TEXT'
+		]) {
+			try {
+				this.ctx.storage.sql.exec(stmt);
+			} catch {
+				// column already exists
+			}
+		}
 		this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS reports (
 			day TEXT PRIMARY KEY,
 			content TEXT NOT NULL,
@@ -275,7 +290,8 @@ export class BoardRoom extends DurableObject<Env> {
 			id: c.id,
 			title: c.title,
 			position: c.position,
-			collapsed: c.collapsed !== 0
+			collapsed: c.collapsed !== 0,
+			dateGrouped: c.date_grouped !== 0
 		}));
 		const items = (
 			this.ctx.storage.sql.exec('SELECT * FROM items ORDER BY column_id, position').toArray() as unknown as ItemRow[]
@@ -287,6 +303,7 @@ export class BoardRoom extends DurableObject<Env> {
 				title: i.title,
 				description: i.description,
 				deadline: i.deadline,
+				doneDate: i.done_date,
 				color: i.color as ItemState['color'],
 				createdAt: i.created_at,
 				updatedAt: i.updated_at
@@ -310,9 +327,14 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 		const where = columnId ? 'WHERE column_id = ?' : '';
 		const params: unknown[] = columnId ? [columnId] : [];
+		// date-grouped columns keep position == flat display order (newest day first)
+		const grouped = columnId ? this.#isGrouped(columnId) : false;
+		const order = grouped
+			? 'ORDER BY done_date DESC, position, created_at'
+			: 'ORDER BY position, created_at';
 		const rows = this.ctx.storage.sql
 			.exec(
-				`SELECT id FROM items ${where} ORDER BY position, created_at`,
+				`SELECT id FROM items ${where} ${order}`,
 				...params
 			)
 			.toArray() as unknown as Array<{ id: string }>;
@@ -320,6 +342,13 @@ export class BoardRoom extends DurableObject<Env> {
 			const row = rows[i];
 			if (row) this.ctx.storage.sql.exec('UPDATE items SET position = ? WHERE id = ?', i, row.id);
 		}
+	}
+
+	#isGrouped(columnId: string): boolean {
+		const rows = this.ctx.storage.sql
+			.exec('SELECT date_grouped FROM columns WHERE id = ?', columnId)
+			.toArray() as unknown as Array<{ date_grouped: number }>;
+		return (rows[0]?.date_grouped ?? 0) !== 0;
 	}
 
 	#colorExists(id: string): boolean {
@@ -373,6 +402,29 @@ export class BoardRoom extends DurableObject<Env> {
 				);
 				return;
 			}
+			case 'column.setDateGrouped': {
+				const exists = (
+					this.ctx.storage.sql
+						.exec('SELECT id FROM columns WHERE id = ?', op.id)
+						.toArray() as Array<{ id: string }>
+				)[0];
+				if (!exists) throw new Error('column not found');
+				this.ctx.storage.sql.exec(
+					'UPDATE columns SET date_grouped = ? WHERE id = ?',
+					op.value ? 1 : 0,
+					op.id
+				);
+				if (op.value) {
+					// items already in the column get stamped with the day they were
+					// last touched — a good approximation of when they landed here
+					this.ctx.storage.sql.exec(
+						"UPDATE items SET done_date = strftime('%Y-%m-%d', updated_at / 1000, 'unixepoch') WHERE column_id = ? AND done_date IS NULL",
+						op.id
+					);
+					this.#renumber(op.id);
+				}
+				return;
+			}
 			case 'column.delete': {
 				this.ctx.storage.sql.exec('DELETE FROM items WHERE column_id = ?', op.id);
 				this.ctx.storage.sql.exec('DELETE FROM columns WHERE id = ?', op.id);
@@ -405,15 +457,19 @@ export class BoardRoom extends DurableObject<Env> {
 					index
 				);
 				const now = Date.now();
+				const doneDate = this.#isGrouped(op.columnId)
+					? new Date(now).toISOString().slice(0, 10)
+					: null;
 				this.ctx.storage.sql.exec(
-					`INSERT INTO items (id, column_id, position, title, description, deadline, color, created_at, updated_at)
-					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					`INSERT INTO items (id, column_id, position, title, description, deadline, done_date, color, created_at, updated_at)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					crypto.randomUUID(),
 					op.columnId,
 					index,
 					op.title,
 					op.description ?? '',
 					op.deadline ?? null,
+					doneDate,
 					op.color ?? 'none',
 					now,
 					now
@@ -455,8 +511,8 @@ export class BoardRoom extends DurableObject<Env> {
 				if (!col) throw new Error('column not found');
 				const item = (
 					this.ctx.storage.sql
-						.exec('SELECT column_id, position FROM items WHERE id = ?', op.id)
-						.toArray() as Array<{ column_id: string; position: number }>
+						.exec('SELECT column_id, position, done_date FROM items WHERE id = ?', op.id)
+						.toArray() as Array<{ column_id: string; position: number; done_date: string | null }>
 				)[0];
 				if (!item) throw new Error('item not found');
 				const from = item.column_id;
@@ -466,6 +522,40 @@ export class BoardRoom extends DurableObject<Env> {
 					from,
 					item.position
 				);
+				if (this.#isGrouped(op.toColumnId)) {
+					// the item adopts the day of the group it is dropped into: the
+					// card above the insertion point wins (at a boundary that means
+					// the group it was dropped at the end of); empty column → today.
+					// Dragging between groups is how items get re-dated / backfilled.
+					const rows = this.ctx.storage.sql
+						.exec(
+							'SELECT id, done_date FROM items WHERE column_id = ? AND id != ? ORDER BY done_date DESC, position, created_at',
+							op.toColumnId,
+							op.id
+						)
+						.toArray() as unknown as Array<{ id: string; done_date: string | null }>;
+					const gi = Math.min(Math.max(op.index, 0), rows.length);
+					const above = gi > 0 ? rows[gi - 1] : undefined;
+					const today = new Date().toISOString().slice(0, 10);
+					const date = above?.done_date ?? today;
+					rows.splice(gi, 0, { id: op.id, done_date: date });
+					this.ctx.storage.sql.exec(
+						'UPDATE items SET column_id = ?, done_date = ?, updated_at = ? WHERE id = ?',
+						op.toColumnId,
+						date,
+						Date.now(),
+						op.id
+					);
+					// positions = flat display order (newest day first)
+					for (let i = 0; i < rows.length; i++) {
+						const row = rows[i];
+						if (row) {
+							this.ctx.storage.sql.exec('UPDATE items SET position = ? WHERE id = ?', i, row.id);
+						}
+					}
+					if (from !== op.toColumnId) this.#renumber(from);
+					return;
+				}
 				const n = (
 					this.ctx.storage.sql
 						.exec('SELECT COUNT(*) AS n FROM items WHERE column_id = ?', op.toColumnId)
@@ -478,7 +568,7 @@ export class BoardRoom extends DurableObject<Env> {
 					index
 				);
 				this.ctx.storage.sql.exec(
-					'UPDATE items SET column_id = ?, position = ?, updated_at = ? WHERE id = ?',
+					'UPDATE items SET column_id = ?, position = ?, done_date = NULL, updated_at = ? WHERE id = ?',
 					op.toColumnId,
 					index,
 					Date.now(),
