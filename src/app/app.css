@@ -345,6 +345,13 @@ div.board > * + * {
 	color: var(--text);
 }
 
+/* drop target feedback while hovering a folded column with a dragged card */
+.column-collapsed.drop-active {
+	outline: 2px dashed var(--accent);
+	outline-offset: -2px;
+	color: var(--text);
+}
+
 .show-more {
 	margin: 4px 0 0;
 }
@@ -408,28 +415,46 @@ div.board > * + * {
 	background: #cc000026;
 }
 
+/* date-group headers inside a date-grouped column (e.g. the Done log) */
+.date-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.date-group + .date-group {
+	margin-top: 12px;
+}
+
+.date-label {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-dim);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.date-label::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: color-mix(in srgb, var(--text-dim) 30%, transparent);
+}
+
 /* cards are wrapped in .card-slot so animate:flip can glide them when the
-	order changes; drop-lines inside a slot are absolutely positioned so their
-	appearance/disappearance never shifts the cards around it */
+	order changes (including the live drag-reorder preview) */
 .card-slot {
 	position: relative;
 }
 
-.card-slot > .drop-line {
-	position: absolute;
-	top: -5.5px;
-	left: 4px;
-	right: 4px;
-}
-
-.column-list > .drop-line {
-	margin: -2px 4px;
-}
-
-.drop-line {
-	height: 3px;
-	border-radius: 2px;
-	background: var(--accent);
+/* source slot of a card being dragged to another column — hidden but kept in
+	the DOM so the browser keeps firing dragend on it */
+.card-slot.drag-away {
+	display: none;
 }
 
 /* swatches */
@@ -494,24 +519,73 @@ div.board > * + * {
 	flex: 1;
 }
 
-/* settings modal */
+/* settings modal — .editor.settings-editor beats the generic .editor width
+	further down in this file */
+.editor.settings-editor {
+	width: min(960px, 94vw);
+	max-height: 88vh;
+}
+
+/* two-column layout: columns on the left, colors on the right; the grid is
+	the scrollable region so the Cancel/Save bar always stays visible */
+.settings-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 24px;
+	overflow-y: auto;
+	min-height: 0;
+	align-items: start;
+}
+
+@media (max-width: 640px) {
+	.settings-columns {
+		grid-template-columns: 1fr;
+	}
+}
+
+.settings-col {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
 .settings-editor input[type='text'] {
 	width: 100%;
+	min-width: 0;
 }
 
 .settings-add {
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	margin-bottom: 10px;
+	margin-bottom: 4px;
 }
 
 .settings-add input[type='text'] {
 	flex: 1;
 }
 
-/* daily report modal */
-.report-editor {
+/* per-column "by date" toggle in the settings columns list */
+.date-toggle {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+	color: var(--text-dim);
+	flex: 0 0 auto;
+	white-space: nowrap;
+	cursor: pointer;
+	user-select: none;
+}
+
+.date-toggle input {
+	width: auto;
+	margin: 0;
+}
+
+/* daily report modal — same specificity trick as .editor.settings-editor */
+.editor.report-editor {
 	width: min(560px, 92vw);
 }
 

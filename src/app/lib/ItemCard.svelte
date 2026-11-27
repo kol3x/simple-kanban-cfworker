@@ -25,22 +25,21 @@
 	function onDragStart(e: DragEvent) {
 		store.dragging = item.id;
 		e.dataTransfer?.setData('text/plain', item.id);
-		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			// suppress the native drag ghost that follows the cursor — the live
+			// preview card in the list is the only feedback we want
+			const ghost = document.createElement('div');
+			ghost.style.cssText = 'position:fixed;top:-1000px;left:-1000px;width:1px;height:1px;';
+			document.body.appendChild(ghost);
+			e.dataTransfer.setDragImage(ghost, 0, 0);
+			setTimeout(() => ghost.remove());
+		}
 	}
 
 	function onDragEnd() {
 		store.dragging = null;
 		store.dropTarget = null;
-	}
-
-	function onDragOver(e: DragEvent) {
-		if (!store.dragging || store.dragging === item.id) return;
-		e.preventDefault();
-		e.stopPropagation();
-		const target = e.currentTarget as HTMLElement;
-		const rect = target.getBoundingClientRect();
-		const index = e.clientY < rect.top + rect.height / 2 ? item.position : item.position + 1;
-		store.dropTarget = { columnId: item.columnId, index };
 	}
 </script>
 
@@ -49,11 +48,11 @@
 	style={hex ? `--item-color: ${hex}` : undefined}
 	class:dragging={store.dragging === item.id}
 	class:fresh={store.freshIds.has(item.id)}
+	data-id={item.id}
 	draggable="true"
 	ondragstart={onDragStart}
 	ondragend={onDragEnd}
-	ondragover={onDragOver}
-oncontextmenu={onContextMenu}
+	oncontextmenu={onContextMenu}
 	onclick={() => (store.editingId = item.id)}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (store.editingId = item.id)}
 	tabindex="0"
